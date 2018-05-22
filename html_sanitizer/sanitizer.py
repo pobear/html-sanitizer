@@ -104,6 +104,10 @@ DEFAULT_SETTINGS = {
     'add_nofollow': False,
     'autolink': False,
     'sanitize_href': sanitize_href,
+    'document_preprocessors': [
+    ],
+    'document_postprocessors': [
+    ],
     'element_preprocessors': [
         # convert span elements into em/strong if a matching style rule
         # has been found. strong has precedence, strong & em at the same
@@ -163,6 +167,9 @@ class Sanitizer(object):
         except Exception:  # We could and maybe should be more specific...
             from lxml.html import soupparser
             doc = soupparser.fromstring(html)
+
+        for processor in self.document_preprocessors:
+            doc = processor(doc)
 
         lxml.html.clean.Cleaner(
             remove_unknown_tags=False,
@@ -289,18 +296,21 @@ class Sanitizer(object):
         lxml.html.clean.Cleaner(
             allow_tags=self.tags,
             remove_unknown_tags=False,
-            safe_attrs_only=True,
+            safe_attrs_only=False,
             add_nofollow=self.add_nofollow,
             forms=False
         )(doc)
 
+        for processor in self.document_postprocessors:
+            doc = processor(doc)
+
         html = lxml.html.tostring(doc, encoding='unicode')
 
         # add a space before the closing slash in empty tags
-        html = re.sub(r'<([^/>]+)/>', r'<\1 />', html)
+        # html = re.sub(r'<([^/>]+)/>', r'<\1 />', html)
 
         # remove wrapping tag needed by XML parser
-        html = re.sub(r'^<div>|</div>$', '', html)
+        # html = re.sub(r'^<div>|</div>$', '', html)
 
         # normalize unicode
         html = unicodedata.normalize('NFKC', html)
